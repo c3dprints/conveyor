@@ -95,7 +95,7 @@ CONNECT_ERRORS = {
 }
 
 log = logging.getLogger("conveyor")
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 STARTED = str(time.time())  # the screen reloads itself when this changes (after an update)
 
 
@@ -675,6 +675,9 @@ button:disabled{opacity:.5}
 # resistive touch jitters, so a tap there must stay a tap.
 KIOSK_JS = """
 function applyZoom(z){if(location.hostname==="localhost"&&z)document.documentElement.style.zoom=z/100}
+// the credit is a link on phones and PCs; plain text on the Pi, where the kiosk has no way back
+if(location.hostname!=="localhost"&&document.getElementById("madeby"))document.getElementById("madeby").innerHTML=
+'Made by <a href="https://c3dprints.com" target="_blank" rel="noopener">c3dprints.com</a>';
 if(location.hostname==="localhost"){fetch("/api/screen").then(r=>r.json()).then(d=>applyZoom(d.effective_zoom)).catch(()=>{});
 let y0=null,s0=0,dragged=false;
 addEventListener("pointerdown",e=>{dragged=false;s0=scrollY;
@@ -700,15 +703,24 @@ border-top:1px solid var(--line)}.set:first-of-type{border-top:0}
 #auto{width:100%;margin-top:6px}#auto.on{background:var(--accent);color:#fff;border:0}
 .foot{text-align:center;font-size:15px;margin:8px 0 16px}
 #sleep{display:none;position:fixed;inset:0;background:#000;z-index:9;cursor:none}
+#off{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:8;
+align-items:center;justify-content:center;padding:16px}
+#off .card{max-width:420px;width:100%}button.warn{background:var(--warn);color:#fff;border:0}
 </style></head><body>
 <div id="sleep" onclick="wake()"></div>
+<div id="off"><div class="card"><h2>Shut down the Pi?</h2>
+<div class="muted" id="offmsg">The belt stops and the controls go offline. To start it again, unplug the Pi's
+power and plug it back in.</div>
+<div class="row" id="offbtns" style="margin-top:12px"><button class="warn" onclick="shutdown()">Yes, shut down</button>
+<button onclick="document.getElementById('off').style.display='none'">Cancel</button></div></div></div>
 <h1>Conveyor Control</h1>
 <div id="update"></div>
 <div id="belts"></div>
 <div id="printers"></div>
 <div class="card"><h2>Settings</h2>
 <button id="auto" onclick="toggleAuto()">Automatic mode</button>
-<div id="settings"></div></div>
+<div id="settings"></div>
+<div class="muted" id="madeby" style="text-align:center;margin-top:10px">Made by c3dprints.com</div></div>
 <div class="foot muted">Add printers at <a href="/setup">printer setup</a></div>
 <div class="foot muted" id="where"></div>
 <div class="foot row" style="justify-content:center;flex-wrap:wrap">
@@ -717,6 +729,8 @@ border-top:1px solid var(--line)}.set:first-of-type{border-top:0}
 onclick="location.href='/screen'">Screen settings</button>
 <button style="flex:none;padding:8px 18px;min-height:44px;font-size:15px"
 onclick="location.href='/setup'">Printer setup</button>
+<button style="flex:none;padding:8px 18px;min-height:44px;font-size:15px"
+onclick="document.getElementById('off').style.display='flex'">Shut down Pi</button>
 <button style="flex:none;padding:8px 18px;min-height:44px;font-size:15px"
 onclick="api('/api/rotate',{}).then(d=>{if(!d.ok)document.getElementById('where').textContent=d.message})">Rotate 90&deg;</button>
 <button style="flex:none;padding:8px 18px;min-height:44px;font-size:15px"
@@ -737,6 +751,11 @@ document.getElementById("settings").innerHTML=FIELDS.map(([k,l,st])=>`<div class
 async function save(b){S=(await api("/api/settings",b)).settings;drawSettings()}
 function bump(k,d){save({[k]:S[k]+d})}
 function toggleAuto(){save({enabled:!S.enabled})}
+async function shutdown(){const m=document.getElementById("offmsg");
+document.getElementById("offbtns").style.display="none";m.textContent="Shutting down...";
+let d;try{d=await api("/api/shutdown",{confirm:true})}catch(e){d={ok:false,message:"The Pi didn't answer."}}
+if(d.ok){clearInterval(RT);m.textContent="Shutting down. Wait until the Pi's green light stops flashing (about 20 seconds) before unplugging the power."}
+else{m.textContent=d.message;document.getElementById("offbtns").style.display=""}}
 async function installUpdate(b){b.disabled=true;b.textContent="Installing...";await api("/api/update/install",{})}
 function card(p,i){const st=p.connected?esc(p.state)+(p.stage!=null?" &middot; "+esc(p.stage):"")+
 (p.percent!=null?" &middot; "+p.percent+"%":""):esc(p.error||"connecting...");
@@ -762,7 +781,7 @@ document.getElementById("printers").innerHTML=d.printers.length?d.printers.map(c
 '<div class="card muted">No printers yet. Open <b>http://'+esc(d.name)+'/setup</b> on your PC or phone to add them.</div>';
 document.getElementById("where").innerHTML='From your PC or phone: <b>http://'+esc(d.name)+'</b> or <b>http://'+esc(d.addr)+'</b> &middot; v'+esc(d.app_version);
 if(!S){S=d.settings;drawSettings()}}
-refresh();setInterval(refresh,2000);
+refresh();const RT=setInterval(refresh,2000);
 // "screen off": after 5 idle minutes cover everything in black (this panel shows
 // white if the HDMI signal stops). The waking tap lands here, not on a button.
 const IDLE_MS=5*60*1000;let idleTimer;
@@ -828,7 +847,8 @@ to a free pin (its GND to Pi pin 30, 34 or 39).</div>
 <button class="small go" id="inst" style="display:none" onclick="upd('install')">Install update</button></div>
 <label style="display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--text);font-size:16px">
 <input type="checkbox" id="autoupd" style="width:auto" onchange="api('/api/settings',{auto_update:this.checked})">
-Install updates automatically (when no belt is running)</label></div>
+Install updates automatically (when no belt is running)</label>
+<div class="muted" id="madeby" style="margin-top:10px">Made by c3dprints.com</div></div>
 
 <div class="bar"><button class="go" onclick="save()">Save changes</button><span id="msg" class="result"></span></div>
 
@@ -991,6 +1011,22 @@ def restart_service():
     subprocess.Popen(["sudo", "-n", "systemctl", "restart", "conveyor"])
 
 
+POWEROFF = ["/usr/bin/systemctl", "poweroff"]
+
+
+def can_power_off():
+    """True when install.sh has allowed this service to shut the Pi down."""
+    try:
+        return subprocess.run(["sudo", "-n", "-l", *POWEROFF], capture_output=True,
+                              timeout=10).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def power_off():
+    subprocess.Popen(["sudo", "-n", *POWEROFF])
+
+
 def local_name():
     """The Pi's name on the network (avahi answers <hostname>.local), which
     keeps working when the router hands the Pi a new IP address."""
@@ -1055,6 +1091,18 @@ def build_app(cfg, ctl, discovery=None, scr=None, upd=None):
     def exit_kiosk():
         # closes the full-screen browser on the Pi; the desktop icon brings it back
         subprocess.Popen(["pkill", "-f", "[c]hromium.*--kiosk"])
+        return jsonify(ok=True)
+
+    @app.post("/api/shutdown")
+    def shutdown_pi():
+        if (request.get_json(silent=True) or {}).get("confirm") is not True:
+            return jsonify(ok=False, message="Shutdown needs confirming."), 400
+        if not can_power_off():
+            return jsonify(ok=False, message="The Pi doesn't allow this yet: run "
+                           "sudo bash install.sh once, then try again.")
+        log.info("shutting down the Pi (requested from the controls)")
+        # answer the page first; the service's stop handler turns the belts off
+        threading.Timer(1.0, power_off).start()
         return jsonify(ok=True)
 
     @app.post("/api/rotate")

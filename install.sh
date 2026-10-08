@@ -26,6 +26,7 @@ cat > /etc/sudoers.d/conveyor-uhubctl <<EOF
 $APP_USER ALL=(root) NOPASSWD: /usr/sbin/uhubctl
 $APP_USER ALL=(root) NOPASSWD: /usr/bin/systemctl restart conveyor
 $APP_USER ALL=(root) NOPASSWD: /usr/local/sbin/conveyor-video-mode
+$APP_USER ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff
 EOF
 chmod 440 /etc/sudoers.d/conveyor-uhubctl
 visudo -cf /etc/sudoers.d/conveyor-uhubctl

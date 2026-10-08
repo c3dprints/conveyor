@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.3 (2026-10-08)
+
+- Added: Shut down Pi button with an on-screen "Are you sure?" box. The belt is switched
+  off as the Pi shuts down.
+- Added: "Made by c3dprints.com" in Settings and on the setup page.
+- Release notes: run `sudo bash install.sh` once after updating (allows the shutdown).
+
 ## 1.0.2 (2026-10-08)
 
 - Added: Screen settings page (on the Pi and at `/screen`): pick the 5" HDMI or 4.3" DSI

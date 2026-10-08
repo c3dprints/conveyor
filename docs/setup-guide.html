@@ -28,7 +28,7 @@ th{background:var(--soft)}
 
 <div class="cover">
 <h1>Pi Poop Conveyor</h1>
-<p class="sub">Setup guide, version 1.0.2: Raspberry Pi controller for a Bambu Lab purge ("poop") conveyor</p>
+<p class="sub">Setup guide, version 1.0.3: Raspberry Pi controller for a Bambu Lab purge ("poop") conveyor</p>
 </div>
 
 <p>This project runs a waste-filament conveyor belt from a Raspberry Pi 4. The Pi listens to your Bambu Lab printers over their
@@ -198,6 +198,7 @@ If a printer's IP changes, it reappears in the found list with an <b>Update IP</
 <ul>
 <li><b>Screen settings</b>: pick the screen (5" HDMI or 4.3" DSI), the resolution (5" HDMI only), the zoom and the rotation. After switching screens or resolution you have 20 seconds to press <b>Keep</b>; otherwise it switches back by itself, so a wrong choice can't leave the screen blank. The same page works from a phone or PC at <code>http://conveyor.local/screen</code>.</li>
 <li><b>Printer setup</b>: opens the setup page from section 7 on the Pi's screen.</li>
+<li><b>Shut down Pi</b>: asks <i>Shut down the Pi?</i> first. After <b>Yes, shut down</b>, wait until the Pi's green light stops flashing (about 20 seconds) before unplugging it. To start it again, unplug the power and plug it back in.</li>
 <li><b>Screen off</b>: turns the screen black. The screen also goes black by itself after 5 minutes without a touch. Tap anywhere to wake it; the first tap only wakes the screen and doesn't press anything. (This panel shows white if the Pi stops sending a picture, so the screen is blacked out rather than switched off. The backlight stays on.)</li>
 <li><b>Rotate 90&deg;</b>: turns the screen a quarter turn clockwise each press and remembers the position.</li>
 <li><b>Exit to desktop</b>: closes the full-screen controls. Tap the <b>Conveyor Control</b> desktop icon to bring them back.</li>
@@ -236,6 +237,6 @@ git tag v1.0.3        # matches __version__ in conveyor.py
 git push origin main --tags</pre>
 <p>The Pi only installs tagged releases, so work pushed to <code>main</code> without a tag isn't sent out.</p>
 
-<p style="margin-top:28px;color:var(--muted);font-size:9.5pt">Pi Poop Conveyor v1.0.2. Conveyor hardware design from the
+<p style="margin-top:28px;color:var(--muted);font-size:9.5pt">Pi Poop Conveyor v1.0.3. Made by c3dprints.com. Conveyor hardware design from the
 "WiFi smart poop conveyor" on MakerWorld (model 2594649). Not affiliated with Bambu Lab.</p>
 </body></html>

@@ -4,3 +4,4 @@ config.json.bak
 *.tmp
 __pycache__/
 *.pyc
+.lgd-nfy*
