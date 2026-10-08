@@ -1,0 +1,6 @@
+# holds printer access codes: never commit
+config.json
+config.json.bak
+*.tmp
+__pycache__/
+*.pyc

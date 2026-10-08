@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Pi Poop Conveyor Setup Guide</title>
+<style>
+@page{size:Letter;margin:18mm 16mm}
+:root{--ink:#1d2430;--muted:#5b6575;--line:#d9dee6;--accent:#1f6feb;--soft:#f3f6fa;--warn:#fff4e5;--warnline:#f0b35a}
+body{font:11pt/1.5 "Segoe UI",Arial,sans-serif;color:var(--ink);background:#fff;margin:0}
+h1{font-size:24pt;margin:0 0 4px}
+h2{font-size:15pt;margin:26px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--accent);break-after:avoid}
+h3{font-size:12pt;margin:16px 0 4px;break-after:avoid}
+p,li{margin:4px 0}
+ol,ul{padding-left:22px}
+code,pre{font-family:Consolas,"Courier New",monospace;font-size:9.5pt}
+code{background:var(--soft);padding:1px 4px;border-radius:3px}
+pre{background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:8px 10px;white-space:pre-wrap;word-break:break-all;break-inside:avoid}
+table{border-collapse:collapse;width:100%;margin:8px 0;break-inside:avoid}
+th,td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+th{background:var(--soft)}
+.sub{color:var(--muted);font-size:12pt;margin:0}
+.cover{border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:8px}
+.note,.warn{border-radius:6px;padding:8px 12px;margin:10px 0;break-inside:avoid}
+.note{background:var(--soft);border-left:4px solid var(--accent)}
+.warn{background:var(--warn);border-left:4px solid var(--warnline)}
+.toc{columns:2;font-size:10.5pt}
+.toc li{margin:2px 0}
+.page-break{break-before:page}
+</style></head><body>
+
+<div class="cover">
+<h1>Pi Poop Conveyor</h1>
+<p class="sub">Setup guide, version 1.0.2: Raspberry Pi controller for a Bambu Lab purge ("poop") conveyor</p>
+</div>
+
+<p>This project runs a waste-filament conveyor belt from a Raspberry Pi 4. The Pi listens to your Bambu Lab printers over their
+local network connection (MQTT), and switches the belt motor on when a printer needs it. You can also run it by hand from a
+5-inch touchscreen or from any phone or PC on your network. It replaces the ESP32 + MOSFET board from the original MakerWorld
+design (model 2594649): the motor plugs straight into the Pi's USB port.</p>
+
+<h3>Contents</h3>
+<ol class="toc">
+<li>Parts list</li><li>Install Raspberry Pi OS</li><li>Connect the touchscreen</li><li>Connect the motor</li>
+<li>Install the conveyor software</li><li>Get your printers ready</li><li>Add printers to the conveyor</li>
+<li>Using the controls</li><li>Network access</li><li>Troubleshooting</li><li>Updating</li>
+</ol>
+
+<h2>1. Parts list</h2>
+<table>
+<tr><th>Part</th><th>Notes</th></tr>
+<tr><td>Raspberry Pi 4 Model B</td><td>The USB power switching was built and tested on a Pi 4. A Pi 5 handles USB power differently and is untested.</td></tr>
+<tr><td>Official Pi 4 power supply (5.1&nbsp;V, 3&nbsp;A, USB-C)</td><td>The motor draws from the Pi's USB ports, so use a full-strength supply.</td></tr>
+<tr><td>microSD card, 16&nbsp;GB or larger</td><td>For Raspberry Pi OS.</td></tr>
+<tr><td>A touchscreen: Elecrow 5" HDMI (RC050, 800&times;480, resistive) <b>or</b> a 4.3" DSI screen (800&times;480, ribbon cable)</td><td>Touch connects through the GPIO header; picture through HDMI.</td></tr>
+<tr><td>Micro-HDMI to HDMI cable or adapter</td><td>The Pi 4 has micro-HDMI ports.</td></tr>
+<tr><td>5&nbsp;V USB gear motor (e.g. LA001, 5&nbsp;V 59&nbsp;RPM with USB plug)</td><td>Drives the belt. No MOSFET or driver board needed.</td></tr>
+<tr><td>Printed conveyor parts</td><td>From the MakerWorld model.</td></tr>
+<tr><td>A PC or phone on the same network</td><td>For printer setup.</td></tr>
+</table>
+
+<h2>2. Install Raspberry Pi OS</h2>
+<ol>
+<li>On your PC, install <b>Raspberry Pi Imager</b> from raspberrypi.com/software.</li>
+<li>Choose device <b>Raspberry Pi 4</b>, OS <b>Raspberry Pi OS (64-bit)</b> (the desktop version), and your microSD card.</li>
+<li>When asked to apply OS customisation, choose <b>Edit settings</b> and set:
+<ul>
+<li><b>Hostname:</b> <code>conveyor</code>. This makes the page reachable at <code>http://conveyor.local</code>.</li>
+<li><b>Username and password:</b> your choice (this guide uses <code>admin</code>).</li>
+<li><b>Wi-Fi</b> name and password, and your country and time zone.</li>
+<li>On the <b>Services</b> tab, turn on <b>SSH</b> with password login.</li>
+</ul></li>
+<li>Write the card, put it in the Pi, and power it on. The first boot takes a few minutes.</li>
+</ol>
+<div class="note">Tip: give the Pi a fixed IP address in your router (often called a <b>DHCP reservation</b> or <b>Fixed IP</b>). Then its address never changes.</div>
+
+<h2>3. Connect the touchscreen</h2>
+<h3>4.3" DSI screen (ribbon cable)</h3>
+<p>With the Pi powered off, connect the ribbon cable to the Pi's <b>DISPLAY</b> connector (contacts facing the HDMI ports on a Pi 4) and the screen's power wires if it has them. Power on. The Pi finds the screen by itself, so skip the rest of this section. After installing the software (section 5), open <b>Screen settings</b> and pick <b>4.3" DSI screen</b> if it isn't already selected. That turns off the HDMI output, clears the HDMI boot setting below, and keeps the controls on the 4.3" screen.</p>
+<h3>5" HDMI screen (Elecrow RC050)</h3>
+<ol>
+<li>With the Pi powered off, press the screen onto the GPIO header so it sits on <b>pins 1&ndash;26</b> (the end nearest the SD card), and connect the HDMI cable to the Pi's <b>HDMI 0</b> port (the one beside the USB-C power port).</li>
+<li>Power on. Open a terminal on the Pi (or connect with <code>ssh admin@conveyor.local</code>).</li>
+<li>Turn on the touch controller. Open the boot config:
+<pre>sudo nano /boot/firmware/config.txt</pre>
+Add these two lines at the very end, under <code>[all]</code>, then save (Ctrl+O, Enter, Ctrl+X):
+<pre>dtparam=spi=on
+dtoverlay=ads7846,cs=1,penirq=25,penirq_pull=2,speed=50000,keep_vref_on=0,swapxy=0,pmax=255,xohms=150,xmin=200,xmax=3900,ymin=200,ymax=3900</pre></li>
+<li>Set the screen's resolution. Open:
+<pre>sudo nano /boot/firmware/cmdline.txt</pre>
+This file is one single line. Go to the end of it, add a space, then add the following, without starting a new line:
+<pre>video=HDMI-A-1:800x480M@60D</pre></li>
+<li>Reboot: <code>sudo reboot</code></li>
+</ol>
+
+<h3>Portrait mode</h3>
+<p>Create the display layout file (this replaces any layout saved with the Screen Configuration tool):</p>
+<pre>mkdir -p ~/.config/kanshi
+nano ~/.config/kanshi/config</pre>
+<p>Put this in it:</p>
+<pre>profile {
+    output HDMI-A-1 enable scale 1.000000 mode --custom 800x480@60 position 0,0 transform 270
+}</pre>
+<p><code>transform 270</code> is portrait. Use <code>90</code> for portrait the other way up, or <code>normal</code> for landscape.
+After the software is installed you can also turn the screen with the <b>Rotate 90&deg;</b> button, which saves the setting for you.</p>
+
+<h3>Make touch follow the screen</h3>
+<pre>nano ~/.config/labwc/rc.xml</pre>
+<p>Just before the last line (<code>&lt;/openbox_config&gt;</code>) add:</p>
+<pre>&lt;touch deviceName="ADS7846 Touchscreen" mapToOutput="HDMI-A-1" mouseEmulation="yes"/&gt;</pre>
+<p>If the file doesn't exist yet, copy the system one first: <code>cp /etc/xdg/labwc/rc.xml ~/.config/labwc/</code>. Reboot and check that a tap lands where your finger is.</p>
+
+<h2>4. Connect the motor</h2>
+<ol>
+<li>Mount the gear motor in the printed conveyor as the MakerWorld model shows.</li>
+<li>Plug the motor's USB plug into <b>any USB port on the Pi</b>.</li>
+</ol>
+<p>That's all the wiring. The software switches the USB ports' power on and off with <code>uhubctl</code>, so the motor spins only when it should.</p>
+<div class="warn"><b>All four USB ports switch together.</b> The Pi 4 can't power its USB ports one at a time, so whenever the belt is
+off, every USB port is off. Don't use the Pi's USB ports for a keyboard, mouse or USB drive you need. Use the touchscreen, SSH or VNC
+instead. A second USB motor can share the ports, but both will always run together. USB power is on/off only, so the
+<b>Motor speed</b> setting has no effect on a USB motor.</div>
+<div class="note">Turning the ports on takes about 3&ndash;4 seconds, so expect a short pause between pressing Run and the belt moving.</div>
+
+<div class="page-break"></div>
+<h2>5. Install the conveyor software</h2>
+<ol>
+<li>Copy the project folder to the Pi's home folder as <code>~/poop-conveyor-pi</code>. Either clone it from GitHub:
+<pre>git clone https://github.com/c3dprints/conveyor.git ~/poop-conveyor-pi</pre>
+or copy it from your PC (in a PC terminal, from the folder that contains it):
+<pre>scp -r poop-conveyor-pi admin@conveyor.local:~/</pre></li>
+<li>On the Pi, run the installer:
+<pre>cd ~/poop-conveyor-pi
+sudo bash install.sh</pre></li>
+<li>Reboot: <code>sudo reboot</code></li>
+</ol>
+<p>The installer:</p>
+<ul>
+<li>installs the needed packages: Flask, paho-mqtt, gpiozero, uhubctl and avahi (for <code>conveyor.local</code>)</li>
+<li>allows the app to switch USB power and restart itself without a password prompt (a small file in <code>/etc/sudoers.d</code>)</li>
+<li>creates <code>config.json</code> from <code>config.example.json</code> (readable only by your user, since it will hold printer access codes)</li>
+<li>sets the app up as a service called <code>conveyor</code> that starts at boot and restarts itself if it stops</li>
+<li>opens the controls full screen on the touchscreen at login</li>
+<li>adds a <b>Conveyor Control</b> icon to the desktop that reopens the controls (and restarts the service if needed)</li>
+</ul>
+<h3>Test the motor</h3>
+<pre>sudo systemctl stop conveyor
+python3 ~/poop-conveyor-pi/conveyor.py --test
+sudo systemctl start conveyor</pre>
+<p>The belt should run for 3 seconds and stop.</p>
+
+<h2>6. Get your printers ready</h2>
+<p>For each Bambu Lab printer you need three things. The setup page fills in the first two for you:</p>
+<table>
+<tr><th>Item</th><th>Where to find it</th></tr>
+<tr><td>IP address</td><td>Printer screen: <b>Settings &rarr; Network</b> (WLAN). Found automatically if the printer is on the same network as the Pi.</td></tr>
+<tr><td>Serial number</td><td>Printer screen under <b>Settings</b> (device information), or Bambu Studio's device page. Found automatically along with the IP.</td></tr>
+<tr><td>Access code</td><td>Printer screen: <b>Settings &rarr; Network</b> (WLAN). An 8-character code.</td></tr>
+</table>
+<div class="note">The connection is local only: the Pi talks directly to each printer on port 8883 with the user name <code>bblp</code>
+and the access code. Nothing goes through Bambu's cloud. If the access code is right but the connection is rejected (common on
+newer X1 firmware), turn on <b>LAN Only</b> mode and <b>Developer Mode</b> in the printer's network settings.</div>
+<p>Printers show up automatically only on the Pi's own network. For printers on a different network (for example 192.168.2.x
+while the Pi is on 192.168.1.x), use the <b>Scan</b> box on the setup page (next section).</p>
+
+<h2>7. Add printers to the conveyor</h2>
+<ol>
+<li>On a PC or phone on the same network, open <b>http://conveyor.local/setup</b> (or <code>http://&lt;Pi IP address&gt;/setup</code>).</li>
+<li>Printers found on the network are listed at the top. If one on another network is missing, type that network (e.g. <code>192.168.2.0/24</code>) in the <b>Scan</b> box and press Scan. That network is rechecked every 15 minutes from then on.</li>
+<li>Press <b>Add</b> next to each printer, then:
+<ul>
+<li>give it a name you'll recognise,</li>
+<li>type its <b>access code</b>,</li>
+<li>pick which <b>conveyor</b> it uses (<i>Pi USB belt</i>),</li>
+<li>press <b>Test connection</b> and wait for the green result.</li>
+</ul></li>
+<li>Press <b>Save</b>. The printers connect within a few seconds and appear on the touchscreen.</li>
+</ol>
+<p>Access codes stay on the Pi. They're never sent back to the browser; leave the field blank later to keep the saved code.
+If a printer's IP changes, it reappears in the found list with an <b>Update IP</b> button.</p>
+
+<div class="page-break"></div>
+<h2>8. Using the controls</h2>
+<p>The touchscreen and <b>http://conveyor.local</b> show the same controls.</p>
+<h3>Belt</h3>
+<ul>
+<li><b>Run 30s</b>: runs the belt for 30 seconds.</li>
+<li><b>On</b>: runs the belt continuously (stops by itself after 1 hour).</li>
+<li><b>Off</b>: stops it now.</li>
+</ul>
+<h3>Automatic mode</h3>
+<p>While <b>Automatic mode</b> is on, the belt runs when any assigned printer needs it:</p>
+<table>
+<tr><th>When</th><th>Setting</th><th>Default</th></tr>
+<tr><td>Every few minutes while printing</td><td>Run every (min) / Run for (s)</td><td>every 5 min, for 60 s</td></tr>
+<tr><td>Shortly after a filament change (AMS purge)</td><td>After filament change (s)</td><td>10 s</td></tr>
+<tr><td>When a print finishes or fails</td><td>After print ends (s)</td><td>15 s</td></tr>
+</table>
+<p>Change the times with the + and &minus; buttons under <b>Settings</b>. Changes are saved straight away. Several printers can share one belt; their runs simply overlap.</p>
+<h3>Buttons at the bottom of the page</h3>
+<ul>
+<li><b>Screen settings</b>: pick the screen (5" HDMI or 4.3" DSI), the resolution (5" HDMI only), the zoom and the rotation. After switching screens or resolution you have 20 seconds to press <b>Keep</b>; otherwise it switches back by itself, so a wrong choice can't leave the screen blank. The same page works from a phone or PC at <code>http://conveyor.local/screen</code>.</li>
+<li><b>Printer setup</b>: opens the setup page from section 7 on the Pi's screen.</li>
+<li><b>Screen off</b>: turns the screen black. The screen also goes black by itself after 5 minutes without a touch. Tap anywhere to wake it; the first tap only wakes the screen and doesn't press anything. (This panel shows white if the Pi stops sending a picture, so the screen is blacked out rather than switched off. The backlight stays on.)</li>
+<li><b>Rotate 90&deg;</b>: turns the screen a quarter turn clockwise each press and remembers the position.</li>
+<li><b>Exit to desktop</b>: closes the full-screen controls. Tap the <b>Conveyor Control</b> desktop icon to bring them back.</li>
+</ul>
+<p>On the touchscreen, drag up or down on an empty area (not on a button) to scroll.</p>
+<p>The bottom of the page shows the addresses to use from other devices and the app version.</p>
+
+<h2>9. Network access</h2>
+<ul>
+<li><b>http://conveyor.local</b> works even if the Pi's IP address changes. It works on Windows 10/11, macOS, iPhone and most recent Android phones.</li>
+<li>If your PC or phone is on a different network or VLAN than the Pi, <code>.local</code> names won't reach it unless your router repeats them (UniFi: <b>Settings &rarr; Networks &rarr; Multicast DNS</b>). The IP address always works.</li>
+<li><b>From outside your home:</b> install <b>Tailscale</b> (free) on the Pi and on your phone or PC. Don't forward a port on your router: the page has no login, so anyone who found it could run the belt and change printer settings.</li>
+</ul>
+
+<h2>10. Troubleshooting</h2>
+<table>
+<tr><th>Problem</th><th>What to do</th></tr>
+<tr><td>Controls not showing on the touchscreen</td><td>Tap the <b>Conveyor Control</b> desktop icon. It restarts the service if it isn't answering.</td></tr>
+<tr><td>Want to see what it's doing</td><td><code>journalctl -u conveyor -f</code> shows the live log (printer connections, belt on/off, errors).</td></tr>
+<tr><td>Restart the app</td><td><code>sudo systemctl restart conveyor</code></td></tr>
+<tr><td>Belt doesn't stop</td><td>Check the log for <code>uhubctl ... failed</code>. While idle, the app sends "off" again every 30 seconds. Check the ports with <code>sudo uhubctl -l 1-1</code> and <code>sudo uhubctl -l 2</code>: all should read <b>off</b>.</td></tr>
+<tr><td>Belt never starts</td><td>Run the motor test in section 5. Make sure the printer has a conveyor picked on the setup page and <b>Automatic mode</b> is on.</td></tr>
+<tr><td>"Access code rejected"</td><td>Re-check the code on the printer screen (it changes if you reset it). Then turn on LAN Only + Developer Mode.</td></tr>
+<tr><td>Printer not found</td><td>Scan its network on the setup page, or type its IP and serial in by hand.</td></tr>
+<tr><td>Touch is off or mirrored</td><td>Check the <code>&lt;touch&gt;</code> line in <code>~/.config/labwc/rc.xml</code>, then reboot.</td></tr>
+<tr><td>Screen blank or wrong size</td><td>Check the <code>video=</code> entry is on the single line in <code>cmdline.txt</code> and appears only once.</td></tr>
+<tr><td>Screen white</td><td>The Pi isn't sending a picture. Check the HDMI cable and that the Pi has finished booting.</td></tr>
+</table>
+
+<h2>11. Updating</h2>
+<p>The Pi checks GitHub for a new release every 6 hours. When one is out, the control page shows <b>Update available</b> with an <b>Install</b> button, and the setup page's <b>Software</b> card has <b>Check for updates</b> and <b>Install update</b>. Installing downloads the release, checks it, and restarts the app; the belt stops for a few seconds and the screen reloads itself. If the new version is broken it is not installed and the old one keeps running. Tick <b>Install updates automatically</b> to have the Pi do this by itself whenever no belt is running.</p>
+<p>Your printers and settings live in <code>config.json</code>, which updates never touch. Run <code>sudo bash install.sh</code> again only if the release notes say so.</p>
+<h3>Publishing an update (for the maintainer)</h3>
+<pre>git commit -am "what changed"
+git tag v1.0.3        # matches __version__ in conveyor.py
+git push origin main --tags</pre>
+<p>The Pi only installs tagged releases, so work pushed to <code>main</code> without a tag isn't sent out.</p>
+
+<p style="margin-top:28px;color:var(--muted);font-size:9.5pt">Pi Poop Conveyor v1.0.2. Conveyor hardware design from the
+"WiFi smart poop conveyor" on MakerWorld (model 2594649). Not affiliated with Bambu Lab.</p>
+</body></html>

@@ -1,0 +1,15 @@
+{
+  "motors": [
+    {"name": "Pi USB belt", "pin": "usb"}
+  ],
+  "printers": [],
+  "scan_networks": [],
+  "settings": {
+    "enabled": true,
+    "interval_minutes": 5,
+    "run_seconds": 60,
+    "filament_change_seconds": 10,
+    "after_print_seconds": 15,
+    "speed_percent": 100
+  }
+}

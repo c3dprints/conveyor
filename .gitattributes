@@ -1,0 +1,5 @@
+# the Pi runs these: keep Linux line endings whatever the PC uses
+*.sh text eol=lf
+*.py text eol=lf
+conveyor-video-mode text eol=lf
+*.pdf binary

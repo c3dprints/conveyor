@@ -1,0 +1,22 @@
+#!/bin/bash
+# Sets the HDMI resolution the Pi starts with (video= in cmdline.txt), or with
+# "none" removes it (for a DSI screen, where forcing HDMI on only adds a
+# phantom screen). install.sh copies this to /usr/local/sbin (owned by root)
+# and lets the conveyor service run it with sudo.
+# Usage: conveyor-video-mode 800x480 | none
+set -e
+MODE="$1"
+if [ "$MODE" != none ] && ! [[ "$MODE" =~ ^[0-9]{3,4}x[0-9]{3,4}$ ]]; then
+  echo "usage: $0 WIDTHxHEIGHT|none" >&2; exit 2
+fi
+CMDLINE=/boot/firmware/cmdline.txt
+[ -f "$CMDLINE" ] || CMDLINE=/boot/cmdline.txt
+cp "$CMDLINE" "$CMDLINE.bak"
+# cmdline.txt must stay a single line
+LINE="$(head -n1 "$CMDLINE" | sed -E 's/ ?video=HDMI-A-1:[^ ]*//g')"
+if [ "$MODE" = none ]; then
+  printf '%s\n' "$LINE" > "$CMDLINE.tmp"
+else
+  printf '%s video=HDMI-A-1:%sM@60D\n' "$LINE" "$MODE" > "$CMDLINE.tmp"
+fi
+mv "$CMDLINE.tmp" "$CMDLINE"
