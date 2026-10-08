@@ -95,7 +95,7 @@ CONNECT_ERRORS = {
 }
 
 log = logging.getLogger("conveyor")
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 STARTED = str(time.time())  # the screen reloads itself when this changes (after an update)
 
 
@@ -708,10 +708,9 @@ align-items:center;justify-content:center;padding:16px}
 #off .card{max-width:420px;width:100%}button.warn{background:var(--warn);color:#fff;border:0}
 </style></head><body>
 <div id="sleep" onclick="wake()"></div>
-<div id="off"><div class="card"><h2>Shut down the Pi?</h2>
-<div class="muted" id="offmsg">The belt stops and the controls go offline. To start it again, unplug the Pi's
-power and plug it back in.</div>
-<div class="row" id="offbtns" style="margin-top:12px"><button class="warn" onclick="shutdown()">Yes, shut down</button>
+<div id="off"><div class="card"><h2 id="offtitle">Shut down the Pi?</h2>
+<div class="muted" id="offmsg"></div>
+<div class="row" id="offbtns" style="margin-top:12px"><button class="warn" id="offyes" onclick="power()">Yes</button>
 <button onclick="document.getElementById('off').style.display='none'">Cancel</button></div></div></div>
 <h1>Conveyor Control</h1>
 <div id="update"></div>
@@ -730,7 +729,9 @@ onclick="location.href='/screen'">Screen settings</button>
 <button style="flex:none;padding:8px 18px;min-height:44px;font-size:15px"
 onclick="location.href='/setup'">Printer setup</button>
 <button style="flex:none;padding:8px 18px;min-height:44px;font-size:15px"
-onclick="document.getElementById('off').style.display='flex'">Shut down Pi</button>
+onclick="askPower('reboot')">Restart Pi</button>
+<button style="flex:none;padding:8px 18px;min-height:44px;font-size:15px"
+onclick="askPower('poweroff')">Shut down Pi</button>
 <button style="flex:none;padding:8px 18px;min-height:44px;font-size:15px"
 onclick="api('/api/rotate',{}).then(d=>{if(!d.ok)document.getElementById('where').textContent=d.message})">Rotate 90&deg;</button>
 <button style="flex:none;padding:8px 18px;min-height:44px;font-size:15px"
@@ -751,10 +752,21 @@ document.getElementById("settings").innerHTML=FIELDS.map(([k,l,st])=>`<div class
 async function save(b){S=(await api("/api/settings",b)).settings;drawSettings()}
 function bump(k,d){save({[k]:S[k]+d})}
 function toggleAuto(){save({enabled:!S.enabled})}
-async function shutdown(){const m=document.getElementById("offmsg");
-document.getElementById("offbtns").style.display="none";m.textContent="Shutting down...";
-let d;try{d=await api("/api/shutdown",{confirm:true})}catch(e){d={ok:false,message:"The Pi didn't answer."}}
-if(d.ok){clearInterval(RT);m.textContent="Shutting down. Wait until the Pi's green light stops flashing (about 20 seconds) before unplugging the power."}
+const POWER={poweroff:{title:"Shut down the Pi?",yes:"Yes, shut down",path:"/api/shutdown",
+ask:"The belt stops and the controls go offline. To start it again, unplug the Pi's power and plug it back in.",
+busy:"Shutting down...",done:"Shutting down. Wait until the Pi's green light stops flashing (about 20 seconds) before unplugging the power."},
+reboot:{title:"Restart the Pi?",yes:"Yes, restart",path:"/api/restart",
+ask:"The belt stops and the controls go offline for about a minute while the Pi restarts.",
+busy:"Restarting...",done:"Restarting. The controls come back by themselves in about a minute."}};
+let PW=null;
+function askPower(k){PW=POWER[k];document.getElementById("offtitle").textContent=PW.title;
+document.getElementById("offmsg").textContent=PW.ask;document.getElementById("offyes").textContent=PW.yes;
+document.getElementById("offbtns").style.display="";document.getElementById("off").style.display="flex"}
+async function power(){const m=document.getElementById("offmsg");
+document.getElementById("offbtns").style.display="none";m.textContent=PW.busy;
+let d;try{d=await api(PW.path,{confirm:true})}catch(e){d={ok:false,message:"The Pi didn't answer."}}
+if(d.ok){m.textContent=PW.done;if(PW.path==="/api/shutdown")clearInterval(RT);
+else setTimeout(function back(){fetch("/api/status").then(()=>location.reload(),()=>setTimeout(back,5000))},30000)}
 else{m.textContent=d.message;document.getElementById("offbtns").style.display=""}}
 async function installUpdate(b){b.disabled=true;b.textContent="Installing...";await api("/api/update/install",{})}
 function card(p,i){const st=p.connected?esc(p.state)+(p.stage!=null?" &middot; "+esc(p.stage):"")+
@@ -1011,20 +1023,21 @@ def restart_service():
     subprocess.Popen(["sudo", "-n", "systemctl", "restart", "conveyor"])
 
 
-POWEROFF = ["/usr/bin/systemctl", "poweroff"]
+POWER = {"poweroff": ["/usr/bin/systemctl", "poweroff"],
+         "reboot": ["/usr/bin/systemctl", "reboot"]}
 
 
-def can_power_off():
-    """True when install.sh has allowed this service to shut the Pi down."""
+def can_power_off(action="poweroff"):
+    """True when install.sh has allowed this service to shut down or restart the Pi."""
     try:
-        return subprocess.run(["sudo", "-n", "-l", *POWEROFF], capture_output=True,
+        return subprocess.run(["sudo", "-n", "-l", *POWER[action]], capture_output=True,
                               timeout=10).returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False
 
 
-def power_off():
-    subprocess.Popen(["sudo", "-n", *POWEROFF])
+def power_off(action="poweroff"):
+    subprocess.Popen(["sudo", "-n", *POWER[action]])
 
 
 def local_name():
@@ -1093,17 +1106,24 @@ def build_app(cfg, ctl, discovery=None, scr=None, upd=None):
         subprocess.Popen(["pkill", "-f", "[c]hromium.*--kiosk"])
         return jsonify(ok=True)
 
-    @app.post("/api/shutdown")
-    def shutdown_pi():
+    def power_request(action, what):
         if (request.get_json(silent=True) or {}).get("confirm") is not True:
-            return jsonify(ok=False, message="Shutdown needs confirming."), 400
-        if not can_power_off():
+            return jsonify(ok=False, message=f"{what} needs confirming."), 400
+        if not can_power_off(action):
             return jsonify(ok=False, message="The Pi doesn't allow this yet: run "
                            "sudo bash install.sh once, then try again.")
-        log.info("shutting down the Pi (requested from the controls)")
+        log.info("%s the Pi (requested from the controls)", action)
         # answer the page first; the service's stop handler turns the belts off
-        threading.Timer(1.0, power_off).start()
+        threading.Timer(1.0, power_off, (action,)).start()
         return jsonify(ok=True)
+
+    @app.post("/api/shutdown")
+    def shutdown_pi():
+        return power_request("poweroff", "Shutdown")
+
+    @app.post("/api/restart")
+    def restart_pi():
+        return power_request("reboot", "Restart")
 
     @app.post("/api/rotate")
     def rotate():

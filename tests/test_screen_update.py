@@ -186,18 +186,20 @@ assert web.get("/api/update").get_json()["auto"] is True
 assert web.post("/api/update/install", json={}).get_json()["message"] == "Already up to date."
 # shutdown: needs confirming, and the permission from install.sh
 offs = []
-conveyor.power_off = lambda: offs.append(1)
-conveyor.can_power_off = lambda: False
+conveyor.power_off = lambda action="poweroff": offs.append(action)
+conveyor.can_power_off = lambda action="poweroff": False
 assert web.post("/api/shutdown", json={}).status_code == 400
 r = web.post("/api/shutdown", json={"confirm": True}).get_json()
 assert not r["ok"] and "install.sh" in r["message"]
-conveyor.can_power_off = lambda: True
+conveyor.can_power_off = lambda action="poweroff": True
 assert web.post("/api/shutdown", json={"confirm": "yes"}).status_code == 400
 assert web.post("/api/shutdown", json={"confirm": True}).get_json()["ok"]
+assert web.post("/api/restart", json={}).status_code == 400
+assert web.post("/api/restart", json={"confirm": True}).get_json()["ok"]
 time.sleep(1.3)
-assert offs == [1]
+assert sorted(offs) == ["poweroff", "reboot"]
 page = web.get("/").get_data(as_text=True)
-assert "Shut down the Pi?" in page and "Made by c3dprints.com" in page
+assert "Shut down the Pi?" in page and "Restart the Pi?" in page and "Made by c3dprints.com" in page
 assert "Made by c3dprints.com" in web.get("/setup").get_data(as_text=True)
 nocfg = conveyor.build_app(ccfg, ctl).test_client()
 assert nocfg.get("/api/screen").status_code == 503

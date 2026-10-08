@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.4 (2026-10-08)
+
+- Added: Restart Pi button with an on-screen "Are you sure?" box. The control page
+  reloads by itself when the Pi is back.
+- Release notes: run `sudo bash install.sh` once after updating (allows the restart).
+
 ## 1.0.3 (2026-10-08)
 
 - Added: Shut down Pi button with an on-screen "Are you sure?" box. The belt is switched
