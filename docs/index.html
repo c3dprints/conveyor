@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pi Poop Conveyor</title>
+<meta name="description" content="Run a Bambu Lab purge (poop) conveyor from a Raspberry Pi 4: free app, setup guide and source code.">
+<style>
+:root{--ink:#1d2430;--muted:#5b6575;--line:#d9dee6;--accent:#1f6feb;--soft:#f3f6fa;--bg:#fff;--card:#fff}
+@media (prefers-color-scheme:dark){:root{--ink:#e6eaf0;--muted:#9aa4b2;--line:#2c3440;--accent:#4c8dff;--soft:#1a2029;--bg:#0f1318;--card:#151a21}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Segoe UI",system-ui,-apple-system,Arial,sans-serif}
+main{max-width:860px;margin:0 auto;padding:40px 16px 24px}
+h1{font-size:clamp(30px,6vw,44px);line-height:1.1;margin:0 0 10px}
+h2{font-size:21px;margin:36px 0 10px}
+.lead{font-size:18px;color:var(--muted);margin:0 0 22px;max-width:640px}
+.ver{display:inline-block;font-size:13px;font-weight:600;color:var(--accent);border:1px solid var(--accent);border-radius:99px;padding:2px 10px;margin-bottom:14px}
+.btns{display:flex;flex-wrap:wrap;gap:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:10px 18px;border-radius:8px;border:1px solid var(--line);
+background:var(--card);color:var(--ink);text-decoration:none;font-weight:600}
+.btn.main{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:hover{border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.card h3{margin:0 0 6px;font-size:17px}
+.card p{margin:0 0 12px;color:var(--muted);font-size:15px}
+ul{padding-left:20px;margin:6px 0}li{margin:4px 0}
+pre{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:12px;overflow-x:auto;font:14px/1.5 Consolas,Menlo,monospace;margin:8px 0}
+code{font-family:Consolas,Menlo,monospace}
+footer{max-width:860px;margin:0 auto;padding:24px 16px 40px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+a{color:var(--accent)}
+</style></head><body>
+<main>
+<div class="ver">Version 1.0.4</div>
+<h1>Pi Poop Conveyor</h1>
+<p class="lead">Runs a Bambu Lab purge ("poop") conveyor belt from a Raspberry Pi 4. The Pi watches your printers on your
+home network and runs the belt when they need it, with touchscreen controls and a web page for setup.</p>
+<div class="btns">
+<a class="btn main" href="Pi-Poop-Conveyor-Setup-Guide.pdf" download>Download the setup guide (PDF)</a>
+<a class="btn" href="setup-guide.html">Read the guide online</a>
+<a class="btn" href="https://github.com/c3dprints/conveyor">View on GitHub</a>
+</div>
+
+<h2>Downloads</h2>
+<div class="grid">
+<div class="card"><h3>Setup guide</h3><p>Pi setup, wiring the motor, installing the app and adding your printers.</p>
+<a class="btn" href="Pi-Poop-Conveyor-Setup-Guide.pdf" download>Download PDF</a></div>
+<div class="card"><h3>App (source code)</h3><p>Everything that goes on the Pi, as a zip. Or install it with git (below).</p>
+<a class="btn" href="https://github.com/c3dprints/conveyor/archive/refs/heads/main.zip">Download zip</a></div>
+<div class="card"><h3>GitHub repository</h3><p>Code, changelog and updates. The Pi checks here for new versions.</p>
+<a class="btn" href="https://github.com/c3dprints/conveyor">Open repository</a></div>
+</div>
+
+<h2>What it does</h2>
+<ul>
+<li>Runs the belt every few minutes while printing, after a filament change (AMS purge), and when a print ends.</li>
+<li>Works with Bambu Lab printers over local MQTT (X1, P1 and A1 series), with network discovery.</li>
+<li>The 5 V USB gear motor plugs straight into the Pi: no ESP32 or MOSFET board.</li>
+<li>Touchscreen controls for a 5" HDMI or 4.3" DSI screen, plus a web page at <code>http://conveyor.local</code>.</li>
+<li>Updates itself from GitHub when you press Install.</li>
+</ul>
+
+<h2>Quick install</h2>
+<p>On a Raspberry Pi 4 running Raspberry Pi OS (64-bit, desktop):</p>
+<pre>git clone https://github.com/c3dprints/conveyor.git ~/poop-conveyor-pi
+cd ~/poop-conveyor-pi
+sudo bash install.sh
+sudo reboot</pre>
+<p>Then open <code>http://conveyor.local/setup</code> to add your printers. The guide covers every step.</p>
+<p>Based on the MakerWorld "WiFi smart poop conveyor" (model 2594649).</p>
+</main>
+<footer>Made by <a href="https://c3dprints.com">c3dprints.com</a></footer>
+</body></html>

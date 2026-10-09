@@ -1,6 +1,6 @@
 # Pi Poop Conveyor
 
-Version 1.0.3
+Version 1.0.4
 
 Runs a Bambu Lab purge ("poop") conveyor belt from a Raspberry Pi 4. The Pi watches your
 printers over their local MQTT connection and switches the belt on when a printer needs it:
@@ -11,7 +11,7 @@ It replaces the ESP32 + MOSFET board from the MakerWorld "WiFi smart poop convey
 (model 2594649): the 5 V USB gear motor plugs straight into the Pi, and the app switches the
 Pi's USB power with `uhubctl`.
 
-**Full setup guide:** [docs/Pi-Poop-Conveyor-Setup-Guide.pdf](docs/Pi-Poop-Conveyor-Setup-Guide.pdf)
+**Website:** https://c3dprints.github.io/conveyor/ &nbsp; **Setup guide:** [docs/Pi-Poop-Conveyor-Setup-Guide.pdf](docs/Pi-Poop-Conveyor-Setup-Guide.pdf)
 
 ## Quick start
 
